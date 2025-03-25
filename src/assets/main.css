@@ -1,7 +1,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap');
+
 @import 'tailwindcss';
+@import '@nuxt/ui';
 
 @theme {
   --font-sans: 'Geist', sans-serif;
   --font-mono: 'Geist Mono', monospace;
+}
+
+:root {
+  --ui-primary: var(--ui-color-primary-400);
+  --ui-secondary: var(--ui-color-secondary-400);
+  --ui-success: var(--ui-color-success-400);
+  --ui-info: var(--ui-color-info-400);
+  --ui-warning: var(--ui-color-warning-400);
+  --ui-error: var(--ui-color-error-400);
+
+  --ui-text: var(--ui-color-neutral-200);
+  --ui-text-dimmed: var(--ui-color-neutral-500);
+  --ui-text-muted: var(--ui-color-neutral-400);
+  --ui-text-toned: var(--ui-color-neutral-300);
+  --ui-text-highlighted: var(--color-white);
+
+  --ui-bg: var(--ui-color-neutral-900);
+  --ui-bg-muted: var(--ui-color-neutral-800);
+  --ui-bg-elevated: var(--ui-color-neutral-800);
+  --ui-bg-accented: var(--ui-color-neutral-700);
+  --ui-bg-inverted: var(--color-white);
+
+  --ui-border: var(--ui-color-neutral-800);
+  --ui-border-muted: var(--ui-color-neutral-700);
+  --ui-border-accented: var(--ui-color-neutral-700);
+  --ui-border-inverted: var(--color-white);
 }
