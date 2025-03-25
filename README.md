@@ -1,39 +1,152 @@
-# use-signalr-with-vue
+# Vue SignalR Composable
 
-This template should help get you started developing with Vue 3 in Vite.
+## Overview
 
-## Recommended IDE Setup
+A lightweight, type-safe Vue composable for seamless SignalR hub integration with automatic connection management and reactive event handling.
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Prerequisites
 
-## Type Support for `.vue` Imports in TS
+- Vue 3
+- TypeScript
+- SignalR
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## Installation
 
-## Customize configuration
+### Package Installation
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+Install the required dependencies:
 
-## Project Setup
-
-```sh
-bun install
+```bash
+bun add @microsoft/signalr vue
 ```
 
-### Compile and Hot-Reload for Development
+### TypeScript Types (Optional but Recommended)
 
-```sh
-bun dev
+```bash
+bun add -D @types/signalr
 ```
 
-### Type-Check, Compile and Minify for Production
+## Composable Contents
 
-```sh
-bun run build
+The `useSignalR` composable provides the following reactive properties and methods:
+
+### Reactive Properties
+
+- `connection`: Current SignalR connection instance
+- `isConnected`: Reactive boolean indicating connection status
+- `connectionError`: Reactive error object for connection issues
+- `events`: Reactive storage of received events
+
+### Methods
+
+- `connect()`: Manually establish SignalR connection
+- `disconnect()`: Manually close SignalR connection
+- `on(eventName, callback)`: Listen to specific server events
+- `invoke(methodName, ...args)`: Invoke server methods
+
+## Usage Example
+
+### Basic Implementation
+
+```typescript
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useSignalR } from '@/composables/useSignalR'
+
+// Define data interface
+interface Message {
+  user: string
+  text: string
+  timestamp: Date
+}
+
+// Create SignalR connection
+const {
+  isConnected,
+  connectionError,
+  on,
+  invoke
+} = useSignalR<Message>('https://your-signalr-hub-url')
+
+// Reactive messages list
+const messages = ref<Message[]>([])
+const newMessage = ref('')
+
+// Listen for incoming messages
+on('ReceiveMessage', (message: Message) => {
+  messages.value.push(message)
+})
+
+// Send a message
+async function sendMessage() {
+  if (isConnected.value && newMessage.value.trim()) {
+    await invoke('SendMessage', {
+      user: 'CurrentUser',
+      text: newMessage.value,
+      timestamp: new Date()
+    })
+    newMessage.value = '' // Clear input after sending
+  }
+}
+</script>
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+## Advanced Usage
 
-```sh
-bun lint
+### Manual Connection Management
+
+```typescript
+const { connect, disconnect, isConnected } = useSignalR('https://your-hub-url');
+
+// Manually control connection
+function toggleConnection() {
+  if (isConnected.value) {
+    disconnect();
+  } else {
+    connect();
+  }
+}
 ```
+
+### Multiple Event Listeners
+
+```typescript
+// Listen to multiple events
+on('Event1', (data) => {
+  // Handle Event1
+});
+
+on('Event2', (data) => {
+  // Handle Event2
+});
+```
+
+## Configuration Options
+
+### Customization
+
+- Supports generic typing for type-safe event handling
+- Automatic connection on component mount
+- Automatic disconnection on component unmount
+- Built-in error handling
+
+## Error Handling
+
+```typescript
+const { connectionError } = useSignalR('https://your-hub-url');
+
+// Check and handle connection errors
+if (connectionError.value) {
+  console.error('Connection failed:', connectionError.value.message);
+}
+```
+
+## Notes
+
+- Ensure your SignalR hub URL is correct
+- Handle authentication if required by your hub
+- Consider network and connection stability
+
+## Typescript Support
+
+Fully typed with generics for flexible and type-safe usage.
