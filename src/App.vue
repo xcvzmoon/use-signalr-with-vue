@@ -12,11 +12,13 @@ const error = ref();
 const isConnecting = ref(false);
 const connection = ref<signalR.HubConnection | null>(null);
 const connectionStatus = ref<string>('Not Connected');
+const connectionHubMethodName = ref<string>('');
+const connectionValue = ref();
 
 const connectToSignalR = async () => {
   // Validate URL
-  if (!url.value) {
-    connectionStatus.value = 'Please enter a valid URL';
+  if (!url.value || !connectionHubMethodName.value) {
+    connectionStatus.value = 'Please complete all fields';
     return;
   }
 
@@ -35,8 +37,8 @@ const connectToSignalR = async () => {
       .build();
 
     // Setup listeners
-    connection.value.on('ReceiveStockData', (data) => {
-      console.log('Received stock data:', data);
+    connection.value.on(connectionHubMethodName.value, (data) => {
+      connectionValue.value = data;
     });
 
     // Handle connection events
@@ -75,19 +77,31 @@ const disconnectSignalR = async () => {
 <template>
   <div class="bg-zinc-900 text-zinc-300 h-svh font-mono p-4">
     <div class="flex flex-col gap-4">
-      <div class="flex flex-col gap-1">
-        <label for="url">URL</label>
-        <div class="flex items-center gap-1">
+      <div class="flex flex-col gap-4">
+        <div>
+          <label for="url">Connection Hub URL</label>
           <AppInput
             v-model="url"
             name="url"
             placeholder="ex: http://localhost:3000/signalr"
             class="w-full"
           />
+        </div>
 
+        <div>
+          <label for="hub-method-name">Connection Hub Method Name</label>
+          <AppInput
+            v-model="connectionHubMethodName"
+            name="hub-method-name"
+            placeholder="ex: MethodHubName"
+            class="w-full"
+          />
+        </div>
+
+        <div class="flex items-center gap-1">
           <AppButton
             @click="connectToSignalR"
-            :disabled="!url"
+            :disabled="!url || !connectionHubMethodName"
             class="w-[6.551rem] justify-center gap-1"
           >
             <LucideLoader v-if="isConnecting" :size="16" class="animate-spin" />
@@ -124,6 +138,10 @@ const disconnectSignalR = async () => {
             </span>
           </div>
         </div>
+      </div>
+
+      <div v-if="connectionValue" class="border-zinc-700 bg-zinc-800 border rounded-md p-4">
+        {{ connectionValue }}
       </div>
 
       <div
