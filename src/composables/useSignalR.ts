@@ -1,9 +1,13 @@
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, getCurrentInstance } from 'vue';
 import * as signalR from '@microsoft/signalr';
 
 export function useSignalR<T = unknown>(hubUrl: string) {
+  // Get current component instance
+  const instance = getCurrentInstance();
+
   // Connection state
   const isConnected = ref(false);
+  const isConnecting = ref(false);
   const connection = ref<signalR.HubConnection | null | undefined>(null);
   const connectionError = ref<Error | null | undefined>(null);
 
@@ -12,7 +16,15 @@ export function useSignalR<T = unknown>(hubUrl: string) {
 
   // Create connection
   async function connect() {
+    // Prevent multiple simultaneous connection attempts
+    if (isConnecting.value || isConnected.value) return;
+
     try {
+      // Set connecting state
+      isConnecting.value = true;
+      isConnected.value = false;
+      connectionError.value = null;
+
       // Create new connection
       connection.value = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl, {
@@ -25,6 +37,7 @@ export function useSignalR<T = unknown>(hubUrl: string) {
       // Connection event handlers
       connection.value.onclose((error) => {
         isConnected.value = false;
+        isConnecting.value = false;
         connectionError.value = error;
       });
 
@@ -34,16 +47,22 @@ export function useSignalR<T = unknown>(hubUrl: string) {
     } catch (error) {
       isConnected.value = false;
       connectionError.value = error instanceof Error ? error : new Error(String(error));
+    } finally {
+      // Ensure connecting state is reset
+      isConnecting.value = false;
     }
   }
 
   // Disconnect from hub
   async function disconnect() {
     try {
-      if (connection.value) {
-        await connection.value.stop();
-        isConnected.value = false;
-      }
+      // Prevent disconnection if not connected or already connecting
+      if (!connection.value || isConnecting.value) return;
+
+      await connection.value.stop();
+      isConnected.value = false;
+      isConnecting.value = false;
+      connection.value = null;
     } catch (error) {
       connectionError.value = error instanceof Error ? error : new Error(String(error));
     }
@@ -79,14 +98,22 @@ export function useSignalR<T = unknown>(hubUrl: string) {
     }
   }
 
-  // Auto-connect on mount, disconnect on unmount
-  onMounted(connect);
-  onUnmounted(disconnect);
+  // Safely register lifecycle hooks
+  if (instance) {
+    onMounted(() => {
+      connect();
+    });
+
+    onUnmounted(() => {
+      disconnect();
+    });
+  }
 
   // Return composable methods and states
   return {
     connection,
     isConnected,
+    isConnecting,
     connectionError,
     events,
     connect,
