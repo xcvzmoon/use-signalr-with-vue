@@ -2,7 +2,7 @@
 
 ## Overview
 
-A lightweight, type-safe Vue composable for seamless SignalR hub integration with automatic connection management and reactive event handling.
+A type-safe Vue composable for seamless SignalR hub integration with automatic connection management and reactive event handling.
 
 ## Prerequisites
 
