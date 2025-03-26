@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, shallowRef } from 'vue';
 import { useSignalR } from '@/composables/useSignalR';
 
 const hubUrl = ref<string>('');
@@ -8,10 +8,11 @@ const methodName = ref<string>('');
 const methodPayload = ref<string>('');
 const eventLogs = ref<Array<{ type: string; event: string; data: unknown }>>([]);
 
-let signalRComposable: ReturnType<typeof useSignalR> | null = null;
+const signalRComposable = shallowRef();
 
-const isConnected = computed(() => signalRComposable?.isConnected.value ?? false);
-const connectionError = computed(() => signalRComposable?.connectionError.value);
+const isConnecting = computed(() => signalRComposable.value?.isConnecting.value ?? false);
+const isConnected = computed(() => signalRComposable.value?.isConnected.value ?? false);
+const connectionError = computed(() => signalRComposable.value?.connectionError.value);
 
 function addEventLog(type: string, event: string, data: unknown) {
   eventLogs.value.unshift({
@@ -43,10 +44,12 @@ function getLogColor(type: string) {
 function initializeConnection() {
   if (!hubUrl.value) return;
 
-  signalRComposable = useSignalR(hubUrl.value);
+  signalRComposable.value = useSignalR(hubUrl.value);
+
+  signalRComposable.value.connect();
 
   watch(
-    () => signalRComposable?.isConnected.value,
+    () => signalRComposable.value?.isConnected.value,
     (connected) => {
       if (connected) {
         addEventLog('system', 'Connection Established', {});
@@ -55,7 +58,7 @@ function initializeConnection() {
   );
 
   watch(
-    () => signalRComposable?.connectionError.value,
+    () => signalRComposable.value?.connectionError.value,
     (error) => {
       if (error) {
         addEventLog('error', 'Connection Error', error.message);
@@ -65,9 +68,9 @@ function initializeConnection() {
 }
 
 function subscribeToEvent() {
-  if (!signalRComposable || !eventName.value) return;
+  if (!signalRComposable.value || !eventName.value) return;
 
-  signalRComposable.on(eventName.value, (data) => {
+  signalRComposable.value.on(eventName.value, (data: unknown) => {
     addEventLog('received', eventName.value, data);
   });
 
@@ -75,7 +78,7 @@ function subscribeToEvent() {
 }
 
 async function invokeMethod() {
-  if (!signalRComposable || !methodName.value) return;
+  if (!signalRComposable.value || !methodName.value) return;
 
   try {
     let payload = methodPayload.value;
@@ -85,7 +88,7 @@ async function invokeMethod() {
       console.error('Invalid JSON payload');
     }
 
-    const result = await signalRComposable.invoke(methodName.value, payload);
+    const result = await signalRComposable.value.invoke(methodName.value, payload);
     addEventLog('sent', methodName.value, result);
   } catch (error) {
     addEventLog('error', 'Method Invocation Error', error);
@@ -93,10 +96,10 @@ async function invokeMethod() {
 }
 
 function disconnect() {
-  if (signalRComposable) {
-    signalRComposable.disconnect();
+  if (signalRComposable.value) {
+    signalRComposable.value.disconnect();
     addEventLog('system', 'Disconnected', {});
-    signalRComposable = null;
+    signalRComposable.value = null;
   }
 }
 </script>
@@ -106,26 +109,29 @@ function disconnect() {
     <div class="container mx-auto p-6">
       <UCard>
         <template #header>
-          <h1 class="text-2xl font-bold">SignalR Connection Simulator</h1>
+          <h1 class="text-2xl font-bold">SignalR Connection Tester</h1>
         </template>
 
         <div class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormGroup label="SignalR Hub URL">
+            <UFormField :color="connectionError ? 'error' : 'neutral'" label="SignalR Hub URL">
               <UInput
                 v-model="hubUrl"
                 size="lg"
                 placeholder="Enter SignalR Hub URL"
                 :disabled="isConnected"
               />
-            </UFormGroup>
 
-            <UFormGroup label="Connection Actions">
+              <UBadge v-if="connectionError" color="error" class="ml-2" label="Failed" size="sm" />
+            </UFormField>
+
+            <UFormField label="Connection Actions">
               <div class="flex space-x-2">
                 <UButton
                   size="lg"
-                  label="Connect"
                   :disabled="isConnected || !hubUrl"
+                  :loading="isConnecting"
+                  :label="isConnecting ? 'Connecting' : 'Connect'"
                   @click="initializeConnection"
                 />
 
@@ -137,13 +143,11 @@ function disconnect() {
                   @click="disconnect"
                 />
               </div>
-            </UFormGroup>
+            </UFormField>
           </div>
 
-          <UAlert color="error" v-if="connectionError" :title="connectionError.message" />
-
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormGroup label="Subscribe to Event">
+            <UFormField label="Subscribe to Event">
               <div class="flex space-x-2">
                 <UInput
                   size="lg"
@@ -159,9 +163,9 @@ function disconnect() {
                   @click="subscribeToEvent"
                 />
               </div>
-            </UFormGroup>
+            </UFormField>
 
-            <UFormGroup label="Invoke Method">
+            <UFormField label="Invoke Method">
               <div class="flex space-x-2 items-center">
                 <UInput
                   size="lg"
@@ -184,7 +188,7 @@ function disconnect() {
                   :disabled="!isConnected || !methodName"
                 />
               </div>
-            </UFormGroup>
+            </UFormField>
           </div>
 
           <div class="mt-4">
